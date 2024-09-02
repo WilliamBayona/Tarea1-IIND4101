@@ -1,5 +1,6 @@
 from openpyxl import*
 from gurobipy import*
+import aspose.pdf as ap
 
 # Carga de Parametros
 book = load_workbook("Punto1Datos.xlsx")
@@ -117,12 +118,52 @@ m.setParam("Outputflag",0)
 m.optimize()
 z = m.getObjective().getValue()
 
-#Imrpimir resultados en consola
+#Imprimir resultados en consola
+z  = "${:,.2f}".format(z)
 print(z)
 
 for f,s, in x.keys():
     if x[f,s].x>0:
         print("Facultad ",f," en la sede ",s)
     
+
+    
+# Cargar el documento PDF preexistente
+pdf = ap.Document("plantilla.pdf")
+
+# Diccionario para almacenar las facultades asignadas a cada sede
+sedes_facultades = {
+    'Norte': [],
+    'Oriente': [],
+    'Occidente': [],
+    'Sur': []
+}
+
+# Llenar el diccionario con las facultades correspondientes a cada sede
+for f, s in x.keys():
+    if x[f, s].x > 0:
+        sedes_facultades[s].append(f)
+
+# Función para reemplazar el texto en el PDF
+def reemplazar_texto(original, nuevo_texto):
+    txt_absorber = ap.text.TextFragmentAbsorber(original)
+    pdf.pages.accept(txt_absorber)
+    
+    # Reemplazar el texto encontrado
+    for txt_fragment in txt_absorber.text_fragments:
+        txt_fragment.text = nuevo_texto
+
+# Reemplazar cada casilla con la facultad correspondiente
+for sede, facultades in sedes_facultades.items():
+    for i in range(1, 4):  # Solo hay 3 campos por sede
+        original_texto = f"{sede.lower()}{i}"
+        nuevo_texto = f"Facultad {facultades[i - 1]}" if i <= len(facultades) else ""
+        reemplazar_texto(original_texto, nuevo_texto)
+
+# Reemplazar el valor de la FO en el campo "valor"
+reemplazar_texto("valor", str(z))
+
+# Guardar el PDF actualizado
+pdf.save("informe.pdf")
     
     
